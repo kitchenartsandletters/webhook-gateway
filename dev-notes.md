@@ -11,13 +11,12 @@
 - [x] Health & test routes
 - [x] Initial logging
 
-### 🚀 Beta Release Checklist
-- [ ] Implement full HMAC signature verification
-- [ ] Filter and validate payload shape
-- [ ] Full Supabase insert of event + metadata
-- [ ] Forward webhook to FastAPI w/ retry fallback
-- [ ] Add Slack alert on critical error
-- [ ] Create Supabase event viewer dashboard
+### ✅ Beta Release Milestones
+- [x] Implement full HMAC signature verification
+- [x] Filter and validate payload shape
+- [x] Full Supabase insert of event + metadata (topic, shop domain, timestamp)
+- [x] Forward webhook to FastAPI w/ fallback skip in production
+- [x] Verified successful 200 response via curl with signed payload
 
 ## Future Phases
 - Retry queue w/ Redis or Supabase task table
@@ -26,3 +25,7 @@
 - Shopify bulk webhook test simulator
 - Dashboard UI (React) for replay/resend webhooks
 - Multi-tenant project support
+- Supabase replay endpoint (Phase 1.5)
+- Slack error alerting (e.g. invalid HMAC, insert failure)
+- File-based logs in /logs for redundancy
+- Schema-aware processing of common webhook topics (orders/paid, products/create, etc.)

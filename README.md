@@ -1,7 +1,7 @@
 # Webhook Gateway (TypeScript Edition)
 
 ## Purpose
-Handles incoming Shopify webhooks, logs them to Supabase, and forwards validated payloads to the internal FastAPI backend.
+Handles incoming Shopify webhooks, validates authenticity via HMAC, logs event data (including topic, shop domain, and timestamps) to Supabase, and optionally forwards to an internal FastAPI service. Designed for high reliability, observability, and extendability with support for future replay, retry, and alert workflows.
 
 ## Stack
 - Node.js (TypeScript)
@@ -20,7 +20,7 @@ npm run dev
 ## Project Structure
 - `src/index.ts` — Entrypoint
 - `src/routes/webhooks.ts` — Route definitions
-- `src/controllers/shopifyController.ts` — HMAC validation + forwarding logic
+- `src/controllers/shopifyController.ts` — HMAC validation, metadata extraction, Supabase logging, forwarding logic
 - `src/services/supabaseService.ts` — Supabase insert helper
 - `src/utils/logger.ts` — Flat file logging
 - `types/` — Shared TypeScript types
@@ -28,5 +28,12 @@ npm run dev
 ## Test Endpoints
 - `GET /health` — readiness check
 - `GET /test/ping` — mock FastAPI forwarding
+
+## Current Capabilities (Phase 1 Beta)
+- ✅ Full HMAC verification for incoming webhook requests
+- ✅ Payload logging to Supabase including topic, shop domain, and received timestamp
+- ✅ Raw request body handling with `express.raw` middleware
+- ✅ Skips FastAPI forwarding logic in production
+- ✅ Successfully tested with curl and Shopify-compatible webhook signatures
 
 See `dev-notes.md` for project phases.

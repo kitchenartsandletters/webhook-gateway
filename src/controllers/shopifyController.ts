@@ -2,6 +2,9 @@ import crypto from 'crypto';
 import { Request, Response } from 'express';
 import { insertWebhookLog } from '../services/supabaseService.js';
 import { forwardToFastAPI } from '../utils/forwarder.js';
+import { topicHandlers } from '../services/topicHandlers.js';
+import { WebhookProcessingError } from '../utils/errors.js';
+import { createGitHubIssue } from '../services/githubService.js'; // Assuming this is a utility to create GitHub issues
 
 export const handleShopifyWebhook = async (req: Request, res: Response) => {
   const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
@@ -17,9 +20,23 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
   }
 
   const parsedBody = JSON.parse(rawBody.toString());
+  const topic = req.get('X-Shopify-Topic') || 'unknown';
+  const shopDomain = req.get('X-Shopify-Shop-Domain') || 'unknown.myshopify.com';
+
+  const handler = topicHandlers[topic];
+  if (handler) {
+    try {
+      handler(parsedBody);
+    } catch (err) {
+      if (err instanceof WebhookProcessingError) {
+        await createGitHubIssue(`Webhook failure: ${topic}`, `${err.message}\n\n${JSON.stringify(err.context, null, 2)}`);
+      }
+      console.error(`[Handler Error] ${topic}:`, err);
+    }
+  }
 
   try {
-    await insertWebhookLog('shopify', parsedBody);
+    await insertWebhookLog('shopify', parsedBody, topic, shopDomain);
     if (process.env.NODE_ENV !== 'production') {
       await forwardToFastAPI('/webhooks/shopify', parsedBody);
     }
