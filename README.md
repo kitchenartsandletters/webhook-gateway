@@ -35,5 +35,18 @@ npm run dev
 - ✅ Raw request body handling with `express.raw` middleware
 - ✅ Skips FastAPI forwarding logic in production
 - ✅ Successfully tested with curl and Shopify-compatible webhook signatures
+- ✅ Replay endpoint to reprocess logged webhook payloads
+- ✅ GitHub issue trigger for fulfillment errors (with context payload)
+- ✅ Schema-aware topic handlers for major webhook types (orders/fulfilled, etc.)
 
 See `dev-notes.md` for project phases.
+
+## Next Phase: External Webhook Delivery
+
+The next development phase will focus on delivering webhook payloads to external third-party services.
+
+Planned features:
+- Topic-based or config-driven forwarding rules
+- Retry strategy with exponential backoff or failover logging
+- Optional HMAC signing of outbound requests
+- Visibility into delivery attempts and failures
