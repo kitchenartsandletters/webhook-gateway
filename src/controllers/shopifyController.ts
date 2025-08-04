@@ -20,7 +20,9 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
 
   try {
     await insertWebhookLog('shopify', parsedBody);
-    await forwardToFastAPI('/webhooks/shopify', parsedBody);
+    if (process.env.NODE_ENV !== 'production') {
+      await forwardToFastAPI('/webhooks/shopify', parsedBody);
+    }
     res.status(200).send('Received');
   } catch (err) {
     console.error('[Webhook Error]', err);
