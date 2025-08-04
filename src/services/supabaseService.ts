@@ -6,6 +6,14 @@ const supabase = createClient(
 );
 
 export const insertWebhookLog = async (source: string, payload: any) => {
-  const { error } = await supabase.from('webhook_logs').insert([{ source, payload }]);
-  if (error) throw new Error(`[Supabase] ${error.message}`);
+  const { data, error } = await supabase
+    .from('webhook_logs')
+    .insert([{ source, payload }]);
+
+  if (error) {
+    console.error('[Supabase Insert Error]', error); // ← log actual error
+    throw new Error(`[Supabase] ${error.message}`);
+  }
+
+  return data;
 };
