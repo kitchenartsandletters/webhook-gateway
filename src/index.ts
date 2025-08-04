@@ -1,12 +1,10 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import bodyParser from 'body-parser';
 import webhookRoutes from './routes/webhooks.js';
 
 dotenv.config();
 const app = express();
 
-app.use(bodyParser.json());
 app.use('/webhooks', webhookRoutes);
 
 app.get('/health', (_, res) => res.status(200).send('OK'));
