@@ -1,7 +1,8 @@
 import fetch from 'node-fetch';
+import { FASTAPI_INTERNAL_URL } from '../config.js';
 
 export const forwardToFastAPI = async (endpoint: string, body: any) => {
-  const url = process.env.FASTAPI_INTERNAL_URL + endpoint;
+  const url = FASTAPI_INTERNAL_URL + endpoint;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

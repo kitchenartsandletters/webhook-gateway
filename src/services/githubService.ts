@@ -1,8 +1,9 @@
 import fetch from 'node-fetch';
+import { GITHUB_REPO, GITHUB_TOKEN } from '../config.js';
 
 export const createGitHubIssue = async (title: string, body: string) => {
-  const repo = process.env.GITHUB_REPO!;
-  const token = process.env.GITHUB_TOKEN!;
+  const repo = GITHUB_REPO;
+  const token = GITHUB_TOKEN;
 
   const res = await fetch(`https://api.github.com/repos/${repo}/issues`, {
     method: 'POST',

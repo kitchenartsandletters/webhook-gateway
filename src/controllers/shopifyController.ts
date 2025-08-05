@@ -1,16 +1,18 @@
 import crypto from 'crypto';
+import { SHOPIFY_WEBHOOK_SECRET } from '../config.js';
 import { Request, Response } from 'express';
 import { insertWebhookLog } from '../services/supabaseService.js';
 import { forwardToFastAPI } from '../utils/forwarder.js';
 import { topicHandlers } from '../services/topicHandlers.js';
 import { WebhookProcessingError } from '../utils/errors.js';
 import { createGitHubIssue } from '../services/githubService.js'; // Assuming this is a utility to create GitHub issues
+import { forwardToExternalService } from '../services/externalDeliveryService.js';
 
 export const handleShopifyWebhook = async (req: Request, res: Response) => {
   const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
   const rawBody = (req as any).body; // Buffer
   const calculatedHmac = crypto
-    .createHmac('sha256', process.env.SHOPIFY_WEBHOOK_SECRET!)
+    .createHmac('sha256', SHOPIFY_WEBHOOK_SECRET)
     .update(rawBody, 'utf8')
     .digest('base64');
 
@@ -37,6 +39,14 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
 
   try {
     await insertWebhookLog('shopify', parsedBody, topic, shopDomain);
+    if (topic === 'inventory_levels/update') {
+      const destinationUrl = process.env.USED_BOOKS_WEBHOOK_URL!;
+      if (destinationUrl) {
+        await forwardToExternalService(topic, parsedBody, destinationUrl);
+      } else {
+        console.warn(`[Delivery Skipped] No destination set for topic: ${topic}`);
+      }
+    }
     if (process.env.NODE_ENV !== 'production') {
       await forwardToFastAPI('/webhooks/shopify', parsedBody);
     }
