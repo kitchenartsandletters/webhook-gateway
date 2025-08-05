@@ -9,12 +9,18 @@ import { createGitHubIssue } from '../services/githubService.js'; // Assuming th
 import { forwardToExternalService } from '../services/externalDeliveryService.js';
 
 export const handleShopifyWebhook = async (req: Request, res: Response) => {
+  console.log('[DEBUG] typeof req.body:', typeof req.body);
+  console.log('[DEBUG] instance of Buffer:', Buffer.isBuffer(req.body));
   const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
-  const rawBody = (req as any).body; // Buffer
+  const rawBody = req.body as Buffer; // Buffer
+    console.log('[DEBUG] rawBody length:', rawBody.length);
+    console.log('[DEBUG] rawBody (utf8):', rawBody.toString('utf8'));
   const calculatedHmac = crypto
     .createHmac('sha256', SHOPIFY_WEBHOOK_SECRET)
-    .update(rawBody, 'utf8')
+    .update(rawBody)
     .digest('base64');
+  console.log('[DEBUG] Computed HMAC:', calculatedHmac);
+  console.log('[DEBUG] Header HMAC:', hmacHeader);
 
   if (calculatedHmac !== hmacHeader) {
     console.warn('[HMAC Mismatch]');
