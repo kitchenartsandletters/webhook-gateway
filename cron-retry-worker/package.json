@@ -1,0 +1,13 @@
+{
+  "name": "cron-retry-worker",
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0"
+  }
+}

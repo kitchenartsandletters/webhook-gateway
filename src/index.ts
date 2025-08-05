@@ -16,3 +16,6 @@ app.get('/test/ping', (_, res) => res.send({ pong: true }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Webhook Gateway running on port ${PORT}`));
+
+import retryPendingRoute from './routes/retryPending.js';
+app.use('/', retryPendingRoute);

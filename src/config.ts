@@ -8,8 +8,10 @@ export const getEnv = (key: string): string => {
 
 export const EXTERNAL_HMAC_SECRET = getEnv('EXTERNAL_HMAC_SECRET');
 export const USED_BOOKS_WEBHOOK_URL = getEnv('USED_BOOKS_WEBHOOK_URL');
+// Retry delivery configuration
 export const EXTERNAL_RETRY_LIMIT = parseInt(process.env.EXTERNAL_RETRY_LIMIT || '3', 10);
 export const EXTERNAL_RETRY_INTERVAL_SECONDS = parseInt(process.env.EXTERNAL_RETRY_INTERVAL_SECONDS || '60', 10);
+export const RETRY_INTERVAL = parseInt(process.env.EXTERNAL_RETRY_INTERVAL_SECONDS || '60', 10);
 
 export const SUPABASE_URL = getEnv('SUPABASE_URL');
 export const SUPABASE_SERVICE_ROLE_KEY = getEnv('SUPABASE_SERVICE_ROLE_KEY');
