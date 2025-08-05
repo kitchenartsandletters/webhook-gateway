@@ -9,8 +9,9 @@ import { createGitHubIssue } from '../services/githubService.js'; // Assuming th
 import { forwardToExternalService } from '../services/externalDeliveryService.js';
 
 export const handleShopifyWebhook = async (req: Request, res: Response) => {
+  console.log('[DEBUG] Webhook received');
   console.log('[DEBUG] typeof req.body:', typeof req.body);
-  console.log('[DEBUG] instance of Buffer:', Buffer.isBuffer(req.body));
+  console.log('[DEBUG] Buffer.isBuffer:', Buffer.isBuffer(req.body));
   const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
   const rawBody = req.body as Buffer; // Buffer
     console.log('[DEBUG] rawBody length:', rawBody.length);
@@ -31,6 +32,7 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
   const topic = req.get('X-Shopify-Topic') || 'unknown';
   const shopDomain = req.get('X-Shopify-Shop-Domain') || 'unknown.myshopify.com';
 
+  console.log('[DEBUG] handling topic logic...');
   const handler = topicHandlers[topic];
   if (handler) {
     try {
@@ -42,20 +44,28 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
       console.error(`[Handler Error] ${topic}:`, err);
     }
   }
+  console.log('[DEBUG] topic handler complete');
 
   try {
+    console.log('[DEBUG] inserting into Supabase...');
     await insertWebhookLog('shopify', parsedBody, topic, shopDomain);
+    console.log('[DEBUG] inserted into Supabase');
     if (topic === 'inventory_levels/update') {
       const destinationUrl = process.env.USED_BOOKS_WEBHOOK_URL!;
       if (destinationUrl) {
+        console.log('[DEBUG] forwarding to external service...');
         await forwardToExternalService(topic, parsedBody, destinationUrl);
+        console.log('[DEBUG] external delivery complete');
       } else {
         console.warn(`[Delivery Skipped] No destination set for topic: ${topic}`);
       }
     }
     if (process.env.NODE_ENV !== 'production') {
+      console.log('[DEBUG] forwarding to internal service...');
       await forwardToFastAPI('/webhooks/shopify', parsedBody);
+      console.log('[DEBUG] forwarded to internal service');
     }
+    console.log('[DEBUG] sending 200 OK response');
     res.status(200).send('Received');
   } catch (err) {
     console.error('[Webhook Error]', err);

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { retryPendingDeliveries } from '../src/services/retryService.js';
+import { retryPendingDeliveries } from '../src/services/retryService';
 
 (async () => {
   try {
