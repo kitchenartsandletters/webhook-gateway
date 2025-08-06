@@ -21,7 +21,7 @@ export const fetchWebhookLog = async (id: string) => {
     .from('webhook_logs')
     .select('*')
     .eq('id', id)
-    .single();
+    console.log('[Replay Debug]', data, error);
 
   if (error) {
     console.error('[Supabase Fetch Error]', error);
