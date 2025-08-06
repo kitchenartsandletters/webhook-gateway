@@ -15,7 +15,8 @@ router.post('/replay/:id', async (req, res) => {
     await retrySingleDelivery(deliveryId);
     res.status(200).json({ success: true, message: `Replayed delivery ${deliveryId}` });
   } catch (err: unknown) {
-  const message = err instanceof Error ? err.message : 'Unknown error';
+  console.error('[Replay Route Error]', err);
+  const message = err instanceof Error ? err.message : JSON.stringify(err);
   res.status(500).json({ success: false, error: 'Replay failed', details: message });
 }
 });
