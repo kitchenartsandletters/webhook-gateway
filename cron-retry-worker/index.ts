@@ -1,4 +1,4 @@
-import { retryPendingDeliveries } from '../src/services/retryService';
+import { retryPendingDeliveries } from '../src/services/retryService.js';
 
 const run = async () => {
   console.log('[Cron Retry Worker] Starting retry job...');
