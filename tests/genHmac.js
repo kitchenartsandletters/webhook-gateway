@@ -3,8 +3,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const payload = JSON.stringify({
-  id: 123456789,
-  email: "test@example.com"
+  "id": 123456789,
+  "email": "test@example.com"
 });
 const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
 
