@@ -123,3 +123,14 @@ export const updateDeliveryStatus = async (
     throw new Error(`[Supabase] ${error.message}`);
   }
 };
+
+export const fetchDeliveryById = async (id: string): Promise<any> => {
+  const { data, error } = await supabase
+    .from('external_deliveries')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data;
+};

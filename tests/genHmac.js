@@ -1,16 +1,23 @@
 // tests/genHmac.js
 import fs from 'fs';
 import crypto from 'crypto';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const secret = process.env.SHOPIFY_API_SECRET || 'your-test-secret';
+const payload = JSON.stringify({
+  "id": 123456789,
+  "email": "test@example.com"
+});
+const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
 
-// Read file as raw Buffer
-const buffer = fs.readFileSync('tests/test_payload.json');
+if (!secret) {
+  console.error('❌ No SHOPIFY_WEBHOOK_SECRET in .env');
+  process.exit(1);
+}
 
-// Log raw buffer
-console.log('📦 Raw payload:', buffer.toString());
-
-// Generate HMAC
-const hmac = crypto.createHmac('sha256', secret).update(buffer).digest('base64');
+const hmac = crypto
+  .createHmac('sha256', secret)
+  .update(payload, 'utf8') // Must be a string
+  .digest('base64');
 
 console.log(`✅ HMAC: ${hmac}`);
