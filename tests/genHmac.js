@@ -1,16 +1,16 @@
-import crypto from 'crypto';
+// tests/genHmac.js
 import fs from 'fs';
-import dotenv from 'dotenv';
+import crypto from 'crypto';
 
-dotenv.config();
+const secret = process.env.SHOPIFY_API_SECRET || 'your-test-secret';
 
-const secret = process.env.SHOPIFY_API_SECRET;
-if (!secret) {
-  console.error('❌ No SHOPIFY_API_SECRET in .env');
-  process.exit(1);
-}
+// Read file as raw Buffer
+const buffer = fs.readFileSync('tests/test_payload.json');
 
-const payload = fs.readFileSync('tests/test_payload.json', 'utf8');
-const hmac = crypto.createHmac('sha256', secret).update(payload, 'utf8').digest('base64');
+// Log raw buffer
+console.log('📦 Raw payload:', buffer.toString());
 
-console.log('✅ HMAC:', hmac);
+// Generate HMAC
+const hmac = crypto.createHmac('sha256', secret).update(buffer).digest('base64');
+
+console.log(`✅ HMAC: ${hmac}`);
