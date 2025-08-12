@@ -45,6 +45,8 @@ See `dev-notes.md` for project phases.
 
 The next development phase will focus on delivering webhook payloads to external third-party services.
 
+**NOTE:** When you move to forward to used-books-service, you’ll want to forward the original raw Buffer and pass through the Shopify headers (X-Shopify-Hmac-Sha256, X-Shopify-Topic, X-Shopify-Shop-Domain) so FastAPI can verify the same signature. We can wire that once your inserts are clean again.
+
 Planned features:
 - Topic-based or config-driven forwarding rules
 - Retry strategy with exponential backoff or failover logging

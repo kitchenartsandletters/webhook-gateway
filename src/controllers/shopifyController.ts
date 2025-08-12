@@ -66,31 +66,44 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
   shopDomain
   });
 
-  try {
-    console.log('[DEBUG] inserting into Supabase...');
-    await insertWebhookLog('shopify', parsedBody, topic, shopDomain);
-    // after handler…
+    try {
     console.log('[DEBUG] inserting into Supabase...');
     const inserted = await insertWebhookLog('shopify', parsedBody, topic, shopDomain);
     console.log('[DEBUG] inserted into Supabase');
 
-    const eventId = inserted?.id; // ← UUID from webhook_logs
+    // Grab the DB id to thread through delivery logs/retries
+    const eventId = inserted?.id as string | undefined;
 
     if (topic === 'inventory_levels/update') {
       const destinationUrl = process.env.USED_BOOKS_WEBHOOK_URL!;
       if (destinationUrl) {
-        console.log('[DEBUG] forwarding to external service...');
-        await forwardToExternalService(topic, parsedBody, destinationUrl, 1, eventId); // ← pass eventId
+        console.log('[DEBUG] forwarding to external service (pass-through raw body + Shopify headers)...');
+
+        await forwardToExternalService({
+          topic,
+          rawBody, // exact Buffer from req.body
+          shopifyHeaders: {
+            hmac: hmacHeader || '',
+            topic,
+            shopDomain
+          },
+          url: destinationUrl,
+          attempt: 1,
+          deliveryId: eventId
+        });
+
         console.log('[DEBUG] external delivery complete');
       } else {
         console.warn(`[Delivery Skipped] No destination set for topic: ${topic}`);
       }
     }
+
     if (process.env.NODE_ENV !== 'production') {
       console.log('[DEBUG] forwarding to internal service...');
       await forwardToFastAPI('/webhooks/shopify', parsedBody);
       console.log('[DEBUG] forwarded to internal service');
     }
+
     console.log('[DEBUG] sending 200 OK response');
     res.status(200).send('Received');
   } catch (err) {

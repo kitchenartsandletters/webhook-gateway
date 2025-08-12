@@ -1,15 +1,16 @@
 import crypto from 'crypto';
 
-/**
- * Generates a base64-encoded HMAC SHA256 signature for outbound payloads.
- * Format: HMAC(secret, timestamp + body)
- */
+// accept string OR Buffer
 export const generateHmacHeader = (
-  body: string,
+  data: string | Buffer,
   secret: string,
-  timestamp: string
+  _timestamp?: string // kept for signature compatibility; not used in hashing
 ): string => {
   const hmac = crypto.createHmac('sha256', secret);
-  hmac.update(timestamp + body);
+  if (typeof data === 'string') {
+    hmac.update(data, 'utf8');
+  } else {
+    hmac.update(data); // Buffer
+  }
   return hmac.digest('base64');
 };
