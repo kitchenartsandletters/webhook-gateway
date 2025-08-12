@@ -3,17 +3,30 @@ import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from '../config.js';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-export const insertWebhookLog = async (source: string, payload: any, topic: string, shopDomain: string) => {
+export const insertWebhookLog = async (
+  source: string,
+  payload: any,
+  topic: string,
+  shopDomain: string
+) => {
   const { data, error } = await supabase
     .from('webhook_logs')
-    .insert([{ source, payload, topic, shop_domain: shopDomain }]);
+    .insert([{
+      source,
+      payload,                    // <-- keep this exactly
+      topic,
+      shop_domain: shopDomain,
+      received_at: new Date().toISOString()
+    }])
+    .select('id, topic, shop_domain, received_at') // <-- return id
+    .single();                                     // <-- one row
 
   if (error) {
-    console.error('[Supabase Insert Error]', error); // ← log actual error
+    console.error('[Supabase Insert Error]', error);
     throw new Error(`[Supabase] ${error.message}`);
   }
 
-  return data;
+  return data; // { id, ... }
 };
 
 export const fetchWebhookLog = async (id: string) => {

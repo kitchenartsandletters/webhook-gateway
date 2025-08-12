@@ -49,12 +49,18 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
   try {
     console.log('[DEBUG] inserting into Supabase...');
     await insertWebhookLog('shopify', parsedBody, topic, shopDomain);
+    // after handler…
+    console.log('[DEBUG] inserting into Supabase...');
+    const inserted = await insertWebhookLog('shopify', parsedBody, topic, shopDomain);
     console.log('[DEBUG] inserted into Supabase');
+
+    const eventId = inserted?.id; // ← UUID from webhook_logs
+
     if (topic === 'inventory_levels/update') {
       const destinationUrl = process.env.USED_BOOKS_WEBHOOK_URL!;
       if (destinationUrl) {
         console.log('[DEBUG] forwarding to external service...');
-        await forwardToExternalService(topic, parsedBody, destinationUrl);
+        await forwardToExternalService(topic, parsedBody, destinationUrl, 1, eventId); // ← pass eventId
         console.log('[DEBUG] external delivery complete');
       } else {
         console.warn(`[Delivery Skipped] No destination set for topic: ${topic}`);

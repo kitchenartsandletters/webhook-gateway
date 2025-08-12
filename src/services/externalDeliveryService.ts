@@ -52,11 +52,11 @@ export const forwardToExternalService = async (
 
     if (!isSuccess && attempt < MAX_ATTEMPTS) {
       console.warn(`[Retry] ${topic} failed (attempt ${attempt}). Retrying in ${RETRY_INTERVAL / 1000}s...`);
-      scheduleRetry(topic, payload, url, attempt + 1);
+      scheduleRetry(topic, payload, url, attempt + 1, deliveryId);
     } else if (!isSuccess) {
       console.error(`[Hard Fail] ${topic} failed after ${attempt} attempts.`);
       await logDeliveryAttempt({
-        eventId: deliveryId ?? (payload?.id || 'unknown'),
+        eventId: deliveryId!,
         topic,
         targetUrl: url,
         payload,
@@ -94,7 +94,7 @@ export const forwardToExternalService = async (
   } catch (err: any) {
     if (attempt < MAX_ATTEMPTS) {
       console.error(`[Retryable Error] ${topic} (attempt ${attempt}): ${err.message}`);
-      scheduleRetry(topic, payload, url, attempt + 1);
+      scheduleRetry(topic, payload, url, attempt + 1, deliveryId);
     } else {
       console.error(`[Hard Fail] ${topic} exception after ${attempt} attempts: ${err.message}`);
       await logDeliveryAttempt({
@@ -121,13 +121,13 @@ export const forwardToExternalService = async (
   return { statusCode: 500, responseBody: 'Unhandled delivery state' };
 };
 
-const scheduleRetry = (topic: string, payload: any, url: string, attempt: number) => {
+const scheduleRetry = (topic: string, payload: any, url: string, attempt: number, deliveryId?: string) => {
   addToQueue({
     topic,
     payload,
     targetUrl: url,
     attemptCount: attempt,
     delayMs: RETRY_INTERVAL,
-    retry: () => forwardToExternalService(topic, payload, url, attempt)
+    retry: () => forwardToExternalService(topic, payload, url, attempt, deliveryId)
   });
 };
