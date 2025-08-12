@@ -28,6 +28,16 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
     return res.status(401).send('HMAC validation failed');
   }
 
+  const bodyStr = rawBody.toString('utf8');
+
+  // Shopify (or test sender) sent literal JSON null
+  if (bodyStr.trim() === 'null') {
+    console.warn('[Webhook] Received JSON null body; skipping insert');
+    // Choice A: treat as no‑op
+    return res.status(204).send('No content');
+    // Choice B: if you prefer to log a placeholder row, you can insert a minimal payload like {}
+  }
+
   const parsedBody = JSON.parse(rawBody.toString());
   const topic = req.get('X-Shopify-Topic') || 'unknown';
   const shopDomain = req.get('X-Shopify-Shop-Domain') || 'unknown.myshopify.com';

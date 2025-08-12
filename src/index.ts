@@ -7,6 +7,9 @@ import replayDeliveryRoutes from './routes/replayDelivery.js';
 dotenv.config();
 const app = express();
 
+// IMPORTANT: raw parser first for this route (before any JSON parser)
+app.use('/webhooks/shopify', express.raw({ type: 'application/json' }));
+
 app.use('/webhooks', webhookRoutes);
 app.use('/replay', replayRoutes);
 app.use('/', replayDeliveryRoutes);
