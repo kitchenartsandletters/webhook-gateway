@@ -46,6 +46,16 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
   }
   console.log('[DEBUG] topic handler complete');
 
+  console.log('[DEBUG] about to insert webhook_log', {
+  hasPayload: parsedBody !== undefined && parsedBody !== null,
+  payloadType: typeof parsedBody,
+  payloadPreview: (() => {
+    try { return JSON.stringify(parsedBody).slice(0, 200); } catch { return '<<unstringifiable>>'; }
+  })(),
+  topic,
+  shopDomain
+  });
+
   try {
     console.log('[DEBUG] inserting into Supabase...');
     await insertWebhookLog('shopify', parsedBody, topic, shopDomain);

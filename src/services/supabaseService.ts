@@ -9,11 +9,30 @@ export const insertWebhookLog = async (
   topic: string,
   shopDomain: string
 ) => {
+  // Defensive: ensure payload is a plain JSON value
+  let safePayload: any;
+  try {
+    // stringify + parse strips out prototypes, Buffers, etc.
+    safePayload = JSON.parse(JSON.stringify(payload));
+  } catch (e) {
+    console.error('[Insert Payload Serialize Error]', e);
+    throw new Error('Payload is not JSON-serializable');
+  }
+
+  if (safePayload === undefined || safePayload === null) {
+    throw new Error('Payload is null/undefined before insert');
+  }
+
+  console.log('[DEBUG] insertWebhookLog payload sanity', {
+    hasPayload: safePayload !== null,
+    preview: JSON.stringify(safePayload).slice(0, 200)
+  });
+  
   const { data, error } = await supabase
     .from('webhook_logs')
     .insert([{
       source,
-      payload,                    // <-- keep this exactly
+      payload: safePayload,                    // <-- keep this exactly
       topic,
       shop_domain: shopDomain,
       received_at: new Date().toISOString()
