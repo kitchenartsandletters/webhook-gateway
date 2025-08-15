@@ -38,10 +38,13 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
     // Choice B: if you prefer to log a placeholder row, you can insert a minimal payload like {}
   }
 
-  const parsedBody = JSON.parse(rawBody.toString());
+  const parsedBody = JSON.parse(rawBody.toString('utf8'));
   const topic = req.get('X-Shopify-Topic') || 'unknown';
   const shopDomain = req.get('X-Shopify-Shop-Domain') || 'unknown.myshopify.com';
-
+  // Optional “available” hint for downstream (best-effort)
+  const availableHint =
+    (parsedBody && (parsedBody.available ?? parsedBody.available_adjustment ?? parsedBody.available_quantity)) ??
+    undefined;
   console.log('[DEBUG] handling topic logic...');
   const handler = topicHandlers[topic];
   if (handler) {
@@ -85,7 +88,8 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
           shopifyHeaders: {
             hmac: hmacHeader || '',
             topic,
-            shopDomain
+            shopDomain,
+            availableHint: availableHint !== undefined ? String(availableHint) : undefined,
           },
           url: destinationUrl,
           attempt: 1,
