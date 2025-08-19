@@ -1,6 +1,7 @@
+import crypto from 'crypto';
 import { fetchPendingDeliveries, updateDeliveryStatus } from './supabaseService.js';
 import { forwardToExternalService } from './externalDeliveryService.js';
-import { RETRY_INTERVAL, EXTERNAL_RETRY_LIMIT } from '../config.js';
+import { RETRY_INTERVAL, EXTERNAL_RETRY_LIMIT, SHOPIFY_WEBHOOK_SECRET } from '../config.js';
 import { fetchDeliveryById } from './supabaseService.js'; // Make sure this exists too
 
 export const retryPendingDeliveries = async (): Promise<void> => {
@@ -32,10 +33,36 @@ export const retryPendingDeliveries = async (): Promise<void> => {
     }
 
     try {
+      const rawBody: Buffer = Buffer.from(
+        typeof payload === 'string' ? payload : JSON.stringify(payload),
+        'utf8'
+      );
+
+      const hdrTopic =
+        (savedHeaders?.['X-Shopify-Topic'] as string) ||
+        (savedHeaders?.['x-shopify-topic'] as string) ||
+        topic;
+
+      const hdrShopDomain =
+        (savedHeaders?.['X-Shopify-Shop-Domain'] as string) ||
+        (savedHeaders?.['x-shopify-shop-domain'] as string) ||
+        '';
+
+      const replayHmac = crypto
+        .createHmac('sha256', SHOPIFY_WEBHOOK_SECRET)
+        .update(rawBody)
+        .digest('base64');
+
+      const shopifyHeaders = {
+        hmac: replayHmac,
+        topic: hdrTopic,
+        shopDomain: hdrShopDomain,
+      };
+
       const { statusCode, responseBody } = await forwardToExternalService({
-        topic,
-        rawBody: Buffer.from(typeof payload === 'string' ? payload : JSON.stringify(payload), 'utf8'),
-        shopifyHeaders: savedHeaders || { hmac: '', topic, shopDomain: '' },
+        topic: hdrTopic,
+        rawBody,
+        shopifyHeaders,
         url: targetUrl,
         attempt: attemptCount + 1,
         deliveryId: id,
@@ -88,10 +115,36 @@ export const retrySingleDelivery = async (id: string): Promise<void> => {
   }
 
   try {
+    const rawBody: Buffer = Buffer.from(
+      typeof payload === 'string' ? payload : JSON.stringify(payload),
+      'utf8'
+    );
+
+    const hdrTopic =
+      (savedHeaders?.['X-Shopify-Topic'] as string) ||
+      (savedHeaders?.['x-shopify-topic'] as string) ||
+      topic;
+
+    const hdrShopDomain =
+      (savedHeaders?.['X-Shopify-Shop-Domain'] as string) ||
+      (savedHeaders?.['x-shopify-shop-domain'] as string) ||
+      '';
+
+    const replayHmac = crypto
+      .createHmac('sha256', SHOPIFY_WEBHOOK_SECRET)
+      .update(rawBody)
+      .digest('base64');
+
+    const shopifyHeaders = {
+      hmac: replayHmac,
+      topic: hdrTopic,
+      shopDomain: hdrShopDomain,
+    };
+
     const { statusCode, responseBody } = await forwardToExternalService({
-      topic,
-      rawBody: Buffer.from(typeof payload === 'string' ? payload : JSON.stringify(payload), 'utf8'),
-      shopifyHeaders: savedHeaders || { hmac: '', topic, shopDomain: '' },
+      topic: hdrTopic,
+      rawBody,
+      shopifyHeaders,
       url: targetUrl,
       attempt: attemptCount + 1,
       deliveryId: id,
