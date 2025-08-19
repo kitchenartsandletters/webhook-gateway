@@ -11,6 +11,8 @@ type ShopifyHeaders = {
   hmac: string;
   topic: string;
   shopDomain: string;
+  /** Optional convenience hint for downstream */
+  availableHint?: string;
 };
 
 type ForwardArgs = {
@@ -102,6 +104,10 @@ export async function forwardToExternalService(
           'X-Gateway-Signature': gatewaySig,
           'X-Gateway-Timestamp': timestamp,
           'X-Retry-Attempt': String(attempt),
+          // Optional hint (only sent if present)
+          ...(shopifyHeaders.availableHint
+            ? { 'X-Available-Hint': String(shopifyHeaders.availableHint) }
+            : {}),
         },
         body: rawBody,  // ← CRITICAL: exact bytes
       });
