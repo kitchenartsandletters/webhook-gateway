@@ -16,9 +16,20 @@ export const retryPendingDeliveries = async (): Promise<void> => {
       headers
     } = delivery;
 
-    // Reuse the exact raw payload and the original Shopify headers so HMAC validation can pass downstream.
-    // `headers` is stored as a JSON string in the database; parse it if present.
-    const savedHeaders = headers ? JSON.parse(headers) : undefined;
+    // headers may be stored as a JSON string **or** as an object depending on the inserter.
+    let savedHeaders: any = undefined;
+    if (headers) {
+      if (typeof headers === 'string') {
+        try {
+          savedHeaders = JSON.parse(headers);
+        } catch {
+          // if it's not valid JSON, fall back to undefined (we'll still deliver without HMAC)
+          savedHeaders = undefined;
+        }
+      } else if (typeof headers === 'object') {
+        savedHeaders = headers;
+      }
+    }
 
     try {
       const { statusCode, responseBody } = await forwardToExternalService({
@@ -61,8 +72,20 @@ export const retrySingleDelivery = async (id: string): Promise<void> => {
     headers
   } = delivery;
 
-  // Preserve original headers for downstream HMAC validation.
-  const savedHeaders = headers ? JSON.parse(headers) : undefined;
+  // headers may be stored as a JSON string **or** as an object depending on the inserter.
+  let savedHeaders: any = undefined;
+  if (headers) {
+    if (typeof headers === 'string') {
+      try {
+        savedHeaders = JSON.parse(headers);
+      } catch {
+        // if it's not valid JSON, fall back to undefined (we'll still deliver without HMAC)
+        savedHeaders = undefined;
+      }
+    } else if (typeof headers === 'object') {
+      savedHeaders = headers;
+    }
+  }
 
   try {
     const { statusCode, responseBody } = await forwardToExternalService({
