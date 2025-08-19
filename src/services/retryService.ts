@@ -12,17 +12,23 @@ export const retryPendingDeliveries = async (): Promise<void> => {
       topic,
       payload,
       target_url: targetUrl,
-      attempt_count: attemptCount
+      attempt_count: attemptCount,
+      headers
     } = delivery;
 
+    // Reuse the exact raw payload and the original Shopify headers so HMAC validation can pass downstream.
+    // `headers` is stored as a JSON string in the database; parse it if present.
+    const savedHeaders = headers ? JSON.parse(headers) : undefined;
+
     try {
-      const { statusCode, responseBody } = await forwardToExternalService(
+      const { statusCode, responseBody } = await forwardToExternalService({
         topic,
-        payload,
-        targetUrl,
-        attemptCount + 1,
-        id // reuse delivery ID
-      );
+        rawBody: Buffer.from(typeof payload === 'string' ? payload : JSON.stringify(payload), 'utf8'),
+        shopifyHeaders: savedHeaders || { hmac: '', topic, shopDomain: '' },
+        url: targetUrl,
+        attempt: attemptCount + 1,
+        deliveryId: id,
+      });
 
       await updateDeliveryStatus(id, 'success', statusCode, responseBody, attemptCount + 1);
     } catch (err: any) {
@@ -51,17 +57,22 @@ export const retrySingleDelivery = async (id: string): Promise<void> => {
     topic,
     payload,
     target_url: targetUrl,
-    attempt_count: attemptCount
+    attempt_count: attemptCount,
+    headers
   } = delivery;
 
+  // Preserve original headers for downstream HMAC validation.
+  const savedHeaders = headers ? JSON.parse(headers) : undefined;
+
   try {
-    const { statusCode, responseBody } = await forwardToExternalService(
+    const { statusCode, responseBody } = await forwardToExternalService({
       topic,
-      payload,
-      targetUrl,
-      attemptCount + 1,
-      id
-    );
+      rawBody: Buffer.from(typeof payload === 'string' ? payload : JSON.stringify(payload), 'utf8'),
+      shopifyHeaders: savedHeaders || { hmac: '', topic, shopDomain: '' },
+      url: targetUrl,
+      attempt: attemptCount + 1,
+      deliveryId: id,
+    });
 
     await updateDeliveryStatus(id, 'success', statusCode, responseBody, attemptCount + 1);
   } catch (err: any) {
