@@ -32,7 +32,7 @@ export const topicHandlers: Record<string, TopicHandler> = {
   'orders/create': (payload) => {
     console.log('[Handler] orders/create:', payload.id);
     forwardJson('orders/create', payload, PREORDER_WEBHOOK_URL)
-      .catch(err => console.error('[Error] forwarding orders/create (preorder):', err));
+    .catch(err => console.error('[Error] forwarding orders/create (preorder):', err));
   },
   'orders/fulfilled': (payload) => {
     if (!payload.fulfillment_status || payload.fulfillment_status !== 'fulfilled') {
@@ -46,12 +46,12 @@ export const topicHandlers: Record<string, TopicHandler> = {
   'orders/cancelled': (payload) => {
     console.log('[Handler] orders/cancelled:', payload.id);
     forwardJson('orders/cancelled', payload, PREORDER_WEBHOOK_URL)
-      .catch(err => console.error('[Error] forwarding orders/cancelled (preorder):', err));
+    .catch(err => console.error('[Error] forwarding orders/cancelled (preorder):', err));
   },
   'orders/updated': (payload) => {
     console.log('[Handler] orders/updated:', payload.id);
     forwardJson('orders/updated', payload, PREORDER_WEBHOOK_URL)
-      .catch(err => console.error('[Error] forwarding orders/updated (preorder):', err));
+    .catch(err => console.error('[Error] forwarding orders/updated (preorder):', err));
   },
   'refunds/create': (payload) => {
     console.log('[Handler] refunds/create:', payload.id);
