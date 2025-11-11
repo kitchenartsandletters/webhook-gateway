@@ -131,7 +131,8 @@ export async function forwardToExternalService(
         await supabase.rpc('pg_sleep', { seconds: 0.2 });
         console.log('[Stub Visibility] pg_sleep(0.2) executed to ensure commit visibility');
       } catch (flushErr) {
-        console.warn('[Stub Visibility] pg_sleep fallback failed (ignored):', flushErr.message);
+        const msg = flushErr instanceof Error ? flushErr.message : String(flushErr);
+        console.warn('[Stub Visibility] pg_sleep fallback failed (ignored):', msg);
       }
     }
 
