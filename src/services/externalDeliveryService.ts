@@ -112,6 +112,19 @@ export async function forwardToExternalService(
       }
       eventId = data.id;
       console.log(`[Stub Inserted] Created placeholder webhook_logs entry for replay: ${eventId}`);
+
+      // New code: wait 100ms then verify insert
+      await new Promise(r => setTimeout(r, 100));
+      const verify = await supabase
+        .from('webhook_logs')
+        .select('id')
+        .eq('id', eventId)
+        .single();
+      if (verify.error || !verify.data) {
+        console.error('[Stub Verification Error] Inserted webhook_logs entry not found:', verify.error);
+        throw new Error("Stub insert not persisted");
+      }
+      console.log("[Stub Confirmed] webhook_logs entry visible in DB:", verify.data?.id);
     }
 
     try {
