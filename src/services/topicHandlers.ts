@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { randomUUID } from 'crypto';
 import { WebhookProcessingError } from '../utils/errors.js';
 import { forwardToExternalService } from './externalDeliveryService.js';
+import { supabase } from './supabaseService.js';
 
 const USED_BOOKS_WEBHOOK_URL = (process.env.USED_BOOKS_WEBHOOK_URL || '') as string;
 const PREORDER_WEBHOOK_URL   = (process.env.PREORDER_WEBHOOK_URL || process.env.PREORDER_SERVICE_URL || '') as string;
@@ -15,28 +16,35 @@ const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || '';
  * This includes forwarding to both used-books and preorder services,
  * with consistent error handling and gating by ENABLE_PREORDER_ROUTING.
  */
-function forwardJson(topic: string, payload: any, url: string, attempt = 1, deliveryId?: string) {
+async function forwardJson(topic: string, payload: any, url: string, attempt = 1, deliveryId?: string) {
   if (!url) return Promise.resolve(); // no-op if no target configured
 
-  // ✅ always ensure a valid UUID
   const safeId = deliveryId && /^[0-9a-fA-F-]{36}$/.test(deliveryId)
     ? deliveryId
     : randomUUID();
 
   const rawBody = Buffer.from(JSON.stringify(payload), 'utf8');
   const hmac = crypto.createHmac('sha256', SHOPIFY_WEBHOOK_SECRET).update(rawBody).digest('base64');
-  const shopifyHeaders = {
-    hmac,
-    topic,
-    shopDomain: SHOP_URL
-  };
+  const shopifyHeaders = { hmac, topic, shopDomain: SHOP_URL };
 
+  // ✅ ensure the event_id exists in webhook_logs first
+  await supabase
+    .from('webhook_logs')
+    .upsert({
+      id: safeId,
+      topic,
+      payload,
+      shop_domain: SHOP_URL,
+      received_at: new Date().toISOString()
+    }, { onConflict: 'id' });
+
+  // now forward
   return forwardToExternalService({
     rawBody,
     topic,
     shopifyHeaders,
     attempt,
-    deliveryId: safeId,  // ✅ ensure a proper UUID
+    deliveryId: safeId,
     url
   });
 }
