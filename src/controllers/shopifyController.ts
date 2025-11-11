@@ -3,7 +3,7 @@ import { SHOPIFY_WEBHOOK_SECRET } from '../config.js';
 import { Request, Response } from 'express';
 import { insertWebhookLog } from '../services/supabaseService.js';
 import { forwardToFastAPI } from '../utils/forwarder.js';
-import { topicHandlers } from '../services/topicHandlers.ts.old';
+import { topicHandlers } from '../services/topicHandlers.js';
 import { WebhookProcessingError } from '../utils/errors.js';
 import { createGitHubIssue } from '../services/githubService.js'; // Assuming this is a utility to create GitHub issues
 import { forwardToExternalService } from '../services/externalDeliveryService.js';
