@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { logDeliveryAttempt } from './deliveryLogger.js';
+import { supabase } from '../services/supabaseService.js';
 import { EXTERNAL_HMAC_SECRET, EXTERNAL_RETRY_LIMIT, EXTERNAL_RETRY_INTERVAL_SECONDS } from '../config.js';
 import { generateHmacHeader } from '../utils/hmac.js';
 import { addToQueue } from '../utils/deliveryQueue.js';
@@ -91,6 +92,28 @@ export async function forwardToExternalService(
     const timestamp = new Date().toISOString();
     const gatewaySig = generateHmacHeader(rawBody, EXTERNAL_HMAC_SECRET, timestamp);
 
+    // --- Ensure deliveryId is a valid UUID or insert stub record ---
+    let eventId = deliveryId;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!eventId || typeof eventId !== 'string' || !uuidRegex.test(eventId)) {
+      // Insert stub webhook_logs record
+      const { data, error } = await supabase
+        .from('webhook_logs')
+        .insert({
+          topic,
+          shop_domain: shopifyHeaders.shopDomain,
+          received_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+      if (error) {
+        console.error('[Stub Insert Error] Could not create placeholder webhook_logs entry:', error);
+        throw error;
+      }
+      eventId = data.id;
+      console.log(`[Stub Inserted] Created placeholder webhook_logs entry for replay: ${eventId}`);
+    }
+
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -116,7 +139,7 @@ export async function forwardToExternalService(
       const ok = res.status >= 200 && res.status < 300;
 
       await logDeliveryAttempt({
-        eventId: deliveryId!, // we expect a real UUID from controller
+        eventId: eventId!,
         topic,
         targetUrl: url,
         payload: safeParse(rawBody), // log JSON for observability
@@ -149,9 +172,28 @@ export async function forwardToExternalService(
         console.error(`[Retryable Error] ${topic} (attempt ${attempt}): ${err.message}`);
         scheduleRetry({ type: 'options', args });
       } else {
+        // Ensure eventId is valid before logging
+        let failedEventId = eventId;
+        if (!failedEventId || typeof failedEventId !== 'string' || !uuidRegex.test(failedEventId)) {
+          const { data, error } = await supabase
+            .from('webhook_logs')
+            .insert({
+              topic,
+              shop_domain: shopifyHeaders.shopDomain,
+              received_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single();
+          if (error) {
+            console.error('[Stub Insert Error] Could not create placeholder webhook_logs entry:', error);
+            throw error;
+          }
+          failedEventId = data.id;
+          console.log(`[Stub Inserted] Created placeholder webhook_logs entry for replay: ${failedEventId}`);
+        }
         console.error(`[Hard Fail] ${topic} exception after ${attempt} attempts: ${err.message}`);
         await logDeliveryAttempt({
-          eventId: deliveryId!,
+          eventId: failedEventId!,
           topic,
           targetUrl: url,
           payload: safeParse(rawBody),
