@@ -52,3 +52,7 @@ Planned features:
 - Retry strategy with exponential backoff or failover logging
 - Optional HMAC signing of outbound requests
 - Visibility into delivery attempts and failures
+
+**Replay CLI Format**:
+curl -i -X POST "https://webhook-gateway-production.up.railway.app/replay/8d0c4932-fe3c-4377-b226-696ce684417d"
+- use id and not event id

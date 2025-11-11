@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { randomUUID } from 'crypto';
 import { WebhookProcessingError } from '../utils/errors.js';
 import { forwardToExternalService } from './externalDeliveryService.js';
 
@@ -14,8 +15,8 @@ const ENABLE_PREORDER_ROUTING = process.env.ENABLE_PREORDER_ROUTING === 'true';
  * This includes forwarding to both used-books and preorder services,
  * with consistent error handling and gating by ENABLE_PREORDER_ROUTING.
  */
-function forwardJson(topic: string, payload: any, url: string, attempt = 1, deliveryId = 'manual-replay') {
-  if (!url) return Promise.resolve(); // silently no-op if target not configured
+function forwardJson(topic: string, payload: any, url: string, attempt = 1, deliveryId = randomUUID()) {
+    if (!url) return Promise.resolve(); // silently no-op if target not configured
   const rawBody = Buffer.from(JSON.stringify(payload), 'utf8');
   const hmac = crypto.createHmac('sha256', SHOPIFY_WEBHOOK_SECRET).update(rawBody).digest('base64');
   const shopifyHeaders = {
