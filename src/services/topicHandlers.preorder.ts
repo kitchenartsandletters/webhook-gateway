@@ -15,8 +15,12 @@ const ENABLE_PREORDER_ROUTING = process.env.ENABLE_PREORDER_ROUTING === 'true';
  * This includes forwarding to both used-books and preorder services,
  * with consistent error handling and gating by ENABLE_PREORDER_ROUTING.
  */
-function forwardJson(topic: string, payload: any, url: string, attempt = 1, deliveryId = randomUUID()) {
-    if (!url) return Promise.resolve(); // silently no-op if target not configured
+function forwardJson(topic: string, payload: any, url: string, attempt = 1, deliveryId?: string) {
+  if (!url) return Promise.resolve(); // no-op if no target configured
+
+  // ✅ generate a valid UUID if replay or missing
+  const safeId = (!deliveryId || deliveryId === 'manual-replay') ? randomUUID() : deliveryId;
+
   const rawBody = Buffer.from(JSON.stringify(payload), 'utf8');
   const hmac = crypto.createHmac('sha256', SHOPIFY_WEBHOOK_SECRET).update(rawBody).digest('base64');
   const shopifyHeaders = {
@@ -24,12 +28,13 @@ function forwardJson(topic: string, payload: any, url: string, attempt = 1, deli
     topic,
     shopDomain: SHOP_URL
   };
+
   return forwardToExternalService({
     rawBody,
     topic,
     shopifyHeaders,
     attempt,
-    deliveryId,
+    deliveryId: safeId,  // ✅ ensure a proper UUID
     url
   });
 }
