@@ -125,6 +125,14 @@ export async function forwardToExternalService(
         throw new Error("Stub insert not persisted");
       }
       console.log("[Stub Confirmed] webhook_logs entry visible in DB:", verify.data?.id);
+
+      // --- Force connection flush / visibility for Supabase pool ---
+      try {
+        await supabase.rpc('pg_sleep', { seconds: 0.2 });
+        console.log('[Stub Visibility] pg_sleep(0.2) executed to ensure commit visibility');
+      } catch (flushErr) {
+        console.warn('[Stub Visibility] pg_sleep fallback failed (ignored):', flushErr.message);
+      }
     }
 
     try {
