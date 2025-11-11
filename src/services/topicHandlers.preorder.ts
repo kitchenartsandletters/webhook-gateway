@@ -18,8 +18,10 @@ const ENABLE_PREORDER_ROUTING = process.env.ENABLE_PREORDER_ROUTING === 'true';
 function forwardJson(topic: string, payload: any, url: string, attempt = 1, deliveryId?: string) {
   if (!url) return Promise.resolve(); // no-op if no target configured
 
-  // ✅ generate a valid UUID if replay or missing
-  const safeId = (!deliveryId || deliveryId === 'manual-replay') ? randomUUID() : deliveryId;
+  // ✅ always ensure a valid UUID
+  const safeId = deliveryId && /^[0-9a-fA-F-]{36}$/.test(deliveryId)
+    ? deliveryId
+    : randomUUID();
 
   const rawBody = Buffer.from(JSON.stringify(payload), 'utf8');
   const hmac = crypto.createHmac('sha256', SHOPIFY_WEBHOOK_SECRET).update(rawBody).digest('base64');
