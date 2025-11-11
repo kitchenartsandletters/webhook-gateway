@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { fetchWebhookLog, markAsReplayed } from '../services/supabaseService.js';
-import { topicHandlers } from '../services/topicHandlers.ts.old';
+import { topicHandlers } from '../services/topicHandlers.js';
 
 const router = Router();
 
