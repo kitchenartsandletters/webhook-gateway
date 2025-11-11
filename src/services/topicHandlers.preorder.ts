@@ -9,6 +9,11 @@ const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || '';
 
 const ENABLE_PREORDER_ROUTING = process.env.ENABLE_PREORDER_ROUTING === 'true';
 
+/**
+ * Expanded Phase 2 routing including products/update and enhanced preorder tracking topics.
+ * This includes forwarding to both used-books and preorder services,
+ * with consistent error handling and gating by ENABLE_PREORDER_ROUTING.
+ */
 function forwardJson(topic: string, payload: any, url: string, attempt = 1, deliveryId = 'manual-replay') {
   if (!url) return Promise.resolve(); // silently no-op if target not configured
   const rawBody = Buffer.from(JSON.stringify(payload), 'utf8');
@@ -46,6 +51,8 @@ export const topicHandlers: Record<string, TopicHandler> = {
       });
     }
     console.log('[Handler] orders/fulfilled:', payload.id);
+    forwardJson('orders/fulfilled', payload, PREORDER_WEBHOOK_URL)
+    .catch(err => console.error('[Error] forwarding orders/fulfilled (preorder):', err));
   },
   'orders/cancelled': (payload) => {
     console.log('[Handler] orders/cancelled:', payload.id);
@@ -62,6 +69,8 @@ export const topicHandlers: Record<string, TopicHandler> = {
   'refunds/create': (payload) => {
     console.log('[Handler] refunds/create:', payload.id);
     if (!ENABLE_PREORDER_ROUTING) return; // 👈 valid here
+    forwardJson('refunds/create', payload, PREORDER_WEBHOOK_URL)
+    .catch(err => console.error('[Error] forwarding refunds/create (preorder):', err));
   },
   'inventory_levels/update': (payload) => {
     console.log('[Handler] inventory_levels/update:', payload);
