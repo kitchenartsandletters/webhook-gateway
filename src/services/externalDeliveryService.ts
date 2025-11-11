@@ -92,47 +92,37 @@ export async function forwardToExternalService(
     const timestamp = new Date().toISOString();
     const gatewaySig = generateHmacHeader(rawBody, EXTERNAL_HMAC_SECRET, timestamp);
 
-    // --- Ensure deliveryId is a valid UUID or insert stub record ---
+    // --- Ensure deliveryId is a valid UUID or insert stub record via transaction ---
     let eventId = deliveryId;
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!eventId || typeof eventId !== 'string' || !uuidRegex.test(eventId)) {
-      // Insert stub webhook_logs record
-      const { data, error } = await supabase
-        .from('webhook_logs')
-        .insert({
-          topic,
-          shop_domain: shopifyHeaders.shopDomain,
-          received_at: new Date().toISOString(),
-        })
-        .select('id')
-        .single();
-      if (error) {
-        console.error('[Stub Insert Error] Could not create placeholder webhook_logs entry:', error);
-        throw error;
-      }
-      eventId = data.id;
-      console.log(`[Stub Inserted] Created placeholder webhook_logs entry for replay: ${eventId}`);
-
-      // New code: wait 100ms then verify insert
-      await new Promise(r => setTimeout(r, 100));
-      const verify = await supabase
-        .from('webhook_logs')
-        .select('id')
-        .eq('id', eventId)
-        .single();
-      if (verify.error || !verify.data) {
-        console.error('[Stub Verification Error] Inserted webhook_logs entry not found:', verify.error);
-        throw new Error("Stub insert not persisted");
-      }
-      console.log("[Stub Confirmed] webhook_logs entry visible in DB:", verify.data?.id);
-
-      // --- Force connection flush / visibility for Supabase pool ---
       try {
-        await supabase.rpc('pg_sleep', { seconds: 0.2 });
-        console.log('[Stub Visibility] pg_sleep(0.2) executed to ensure commit visibility');
-      } catch (flushErr) {
-        const msg = flushErr instanceof Error ? flushErr.message : String(flushErr);
-        console.warn('[Stub Visibility] pg_sleep fallback failed (ignored):', msg);
+        const rpcResult = await supabase.rpc('upsert_webhook_and_delivery', {
+          topic,
+          shopDomain: shopifyHeaders.shopDomain,
+          payload: safeParse(rawBody),
+          targetUrl: url,
+          headers: {
+            'X-Shopify-Hmac-Sha256': shopifyHeaders.hmac,
+            'X-Shopify-Topic': shopifyHeaders.topic,
+            'X-Shopify-Shop-Domain': shopifyHeaders.shopDomain,
+            'X-Gateway-Signature': gatewaySig,
+            'X-Gateway-Timestamp': timestamp,
+            'X-Retry-Attempt': String(attempt),
+          },
+          status: 'pending',
+          responseCode: 0,
+          responseBody: '',
+        });
+        if (rpcResult.error) {
+          console.error('[Transaction Error] Could not create stub webhook_logs and external_deliveries:', rpcResult.error);
+          throw rpcResult.error;
+        }
+        eventId = rpcResult.data;
+        console.log(`[Transaction Insert] Created stub webhook_logs and external_deliveries entry with id: ${eventId}`);
+      } catch (err) {
+        console.error('[Transaction Error] Exception during stub insert transaction:', err);
+        throw err;
       }
     }
 
@@ -197,21 +187,34 @@ export async function forwardToExternalService(
         // Ensure eventId is valid before logging
         let failedEventId = eventId;
         if (!failedEventId || typeof failedEventId !== 'string' || !uuidRegex.test(failedEventId)) {
-          const { data, error } = await supabase
-            .from('webhook_logs')
-            .insert({
+          try {
+            const rpcResult = await supabase.rpc('upsert_webhook_and_delivery', {
               topic,
-              shop_domain: shopifyHeaders.shopDomain,
-              received_at: new Date().toISOString(),
-            })
-            .select('id')
-            .single();
-          if (error) {
-            console.error('[Stub Insert Error] Could not create placeholder webhook_logs entry:', error);
-            throw error;
+              shopDomain: shopifyHeaders.shopDomain,
+              payload: safeParse(rawBody),
+              targetUrl: url,
+              headers: {
+                'X-Shopify-Hmac-Sha256': shopifyHeaders.hmac,
+                'X-Shopify-Topic': shopifyHeaders.topic,
+                'X-Shopify-Shop-Domain': shopifyHeaders.shopDomain,
+                'X-Gateway-Signature': gatewaySig,
+                'X-Gateway-Timestamp': timestamp,
+                'X-Retry-Attempt': String(attempt),
+              },
+              status: 'pending',
+              responseCode: 0,
+              responseBody: '',
+            });
+            if (rpcResult.error) {
+              console.error('[Transaction Error] Could not create stub webhook_logs and external_deliveries:', rpcResult.error);
+              throw rpcResult.error;
+            }
+            failedEventId = rpcResult.data;
+            console.log(`[Transaction Insert] Created stub webhook_logs and external_deliveries entry with id: ${failedEventId}`);
+          } catch (err2) {
+            console.error('[Transaction Error] Exception during stub insert transaction:', err2);
+            throw err2;
           }
-          failedEventId = data.id;
-          console.log(`[Stub Inserted] Created placeholder webhook_logs entry for replay: ${failedEventId}`);
         }
         console.error(`[Hard Fail] ${topic} exception after ${attempt} attempts: ${err.message}`);
         await logDeliveryAttempt({
