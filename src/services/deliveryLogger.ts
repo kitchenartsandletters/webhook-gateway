@@ -32,14 +32,14 @@ export const logDeliveryAttempt = async (params: {
   try {
     // ✅ Use atomic RPC for transactional insert
     const { data, error } = await supabase.rpc('upsert_webhook_and_delivery', {
-      topic,
-      shopDomain: headers['X-Shopify-Shop-Domain'] || '',
-      payload,
-      targetUrl: targetUrl,
       headers,
+      payload,
+      responsebody: responseBody,
+      responsecode: responseCode,
+      shopdomain: headers['X-Shopify-Shop-Domain'] || '',
       status,
-      responseCode,
-      responseBody
+      targeturl: targetUrl,
+      topic
     });
 
     if (error) {
