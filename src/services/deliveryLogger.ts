@@ -29,21 +29,26 @@ export const logDeliveryAttempt = async (params: {
     hardFail
   } = params;
 
-  const { error } = await supabase.from('external_deliveries').insert([{
-    event_id: eventId,
-    topic,
-    target_url: targetUrl,
-    payload,
-    headers,
-    status,
-    response_code: responseCode,
-    response_body: responseBody,
-    attempt_count: attemptCount,
-    last_attempt_at: new Date().toISOString()
-  }]);
+  try {
+    // ✅ Use atomic RPC for transactional insert
+    const { data, error } = await supabase.rpc('upsert_webhook_and_delivery', {
+      topic,
+      shopDomain: headers['X-Shopify-Shop-Domain'] || '',
+      payload,
+      targetUrl: targetUrl,
+      headers,
+      status,
+      responseCode,
+      responseBody
+    });
 
-  if (error) {
-    console.error('[Supabase Logging Error]', error);
+    if (error) {
+      console.error('[Supabase Logging Error]', error);
+    } else {
+      console.log(`[RPC Transaction] upsert_webhook_and_delivery succeeded for ${topic} (${eventId || 'new'})`);
+    }
+  } catch (rpcErr) {
+    console.error('[Supabase RPC Exception]', rpcErr);
   }
 
   if (hardFail) {
