@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { WebhookProcessingError } from '../utils/errors.js';
 import { forwardToExternalService } from './externalDeliveryService.js';
 import { supabase } from './supabaseService.js';
+import { forwardToPreorderInternal } from '../utils/preorderForwarder.js';
 
 const USED_BOOKS_WEBHOOK_URL = (process.env.USED_BOOKS_WEBHOOK_URL || '') as string;
 const PREORDER_WEBHOOK_URL   = (process.env.PREORDER_WEBHOOK_URL || process.env.PREORDER_SERVICE_URL || '') as string;
@@ -16,8 +17,8 @@ const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || '';
  * This includes forwarding to both used-books and preorder services,
  * with consistent error handling and gating by ENABLE_PREORDER_ROUTING.
  */
-async function forwardJson(topic: string, payload: any, url: string, attempt = 1, deliveryId?: string) {
-  if (!url) return Promise.resolve(); // no-op if no target configured
+async function forwardJson(topic: string, payload: any, url: string, attempt = 1, deliveryId?: string): Promise<string | undefined> {
+  if (!url) return Promise.resolve(undefined); // no-op if no target configured
 
   const safeId = deliveryId && /^[0-9a-fA-F-]{36}$/.test(deliveryId)
     ? deliveryId
@@ -39,7 +40,7 @@ async function forwardJson(topic: string, payload: any, url: string, attempt = 1
     }, { onConflict: 'id' });
 
   // now forward
-  return forwardToExternalService({
+  await forwardToExternalService({
     rawBody,
     topic,
     shopifyHeaders,
@@ -47,6 +48,7 @@ async function forwardJson(topic: string, payload: any, url: string, attempt = 1
     deliveryId: safeId,
     url
   });
+  return safeId;
 }
 
 export type TopicHandler = (payload: any) => void;
@@ -90,13 +92,19 @@ export const topicHandlers: Record<string, TopicHandler> = {
   },
   'inventory_levels/update': (payload) => {
     console.log('[Handler] inventory_levels/update:', payload);
-    // if (!ENABLE_PREORDER_ROUTING) return; // 👈 valid here
+
     Promise.allSettled([
-      forwardJson('inventory_levels/update', payload, USED_BOOKS_WEBHOOK_URL),
-      forwardJson('inventory_levels/update', payload, PREORDER_WEBHOOK_URL)
+      (async () => {
+        const eventId = await forwardJson('inventory_levels/update', payload, USED_BOOKS_WEBHOOK_URL);
+        return forwardToPreorderInternal({
+          event_id: eventId, // <-- include event_id for better tracking
+          type: 'inventory.updated',
+          inventory_item_id: payload.inventory_item_id
+        });
+      })()
     ]).then(results => {
       results.forEach((r, i) => {
-        const target = i === 0 ? 'used-books' : 'preorder';
+        const target = i === 0 ? 'used-books' : 'preorder-internal';
         if (r.status === 'rejected') {
           console.error(`[Error] forwarding inventory_levels/update (${target}):`, r.reason);
         }
@@ -104,18 +112,37 @@ export const topicHandlers: Record<string, TopicHandler> = {
     });
   },
   'products/update': (payload) => {
-    console.log('[Handler] products/update:', payload);
-    // if (!ENABLE_PREORDER_ROUTING) return; // 👈 valid here
+    console.log('[Handler] products/update:', payload.id);
+
     Promise.allSettled([
-      forwardJson('products/update', payload, USED_BOOKS_WEBHOOK_URL),
-      forwardJson('products/update', payload, PREORDER_WEBHOOK_URL)
+      (async () => {
+        const eventId = await forwardJson('products/update', payload, USED_BOOKS_WEBHOOK_URL);
+        return forwardToPreorderInternal({
+          event_id: eventId, // <-- include event_id for better tracking
+          type: 'product.updated',
+          product_id: payload.id
+        });
+      })()
     ]).then(results => {
       results.forEach((r, i) => {
-        const target = i === 0 ? 'used-books' : 'preorder';
+        const target = i === 0 ? 'used-books' : 'preorder-internal';
         if (r.status === 'rejected') {
           console.error(`[Error] forwarding products/update (${target}):`, r.reason);
         }
       });
     });
+  },
+  'products/create': (payload) => {
+    console.log('[Handler] products/create:', payload.id);
+
+    forwardJson('products/create', payload, USED_BOOKS_WEBHOOK_URL)
+      .then(eventId => forwardToPreorderInternal({
+        event_id: eventId, // <-- include event_id for better tracking
+        type: 'product.updated', // ← intentionally SAME as update
+        product_id: payload.id
+      }))
+      .catch(err => {
+        console.error('[Error] forwarding products/create (preorder-internal):', err);
+      });
   },
 };

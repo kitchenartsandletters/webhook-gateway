@@ -1,10 +1,9 @@
+import 'dotenv/config';
 import express from 'express';
-import dotenv from 'dotenv';
 import webhookRoutes from './routes/webhooks.js';
 import replayRoutes from './routes/replay.js';
 import replayDeliveryRoutes from './routes/replayDelivery.js';
 
-dotenv.config();
 const app = express();
 
 // IMPORTANT: raw parser first for this route (before any JSON parser)

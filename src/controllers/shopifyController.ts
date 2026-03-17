@@ -23,9 +23,15 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
   console.log('[DEBUG] Computed HMAC:', calculatedHmac);
   console.log('[DEBUG] Header HMAC:', hmacHeader);
 
-  if (calculatedHmac !== hmacHeader) {
+  const isValidHmac = calculatedHmac === hmacHeader;
+
+  if (process.env.NODE_ENV !== 'development' && !isValidHmac) {
     console.warn('[HMAC Mismatch]');
     return res.status(401).send('HMAC validation failed');
+  }
+
+  if (!isValidHmac) {
+    console.warn('[HMAC Bypassed for local dev]');
   }
 
   const bodyStr = rawBody.toString('utf8');
@@ -104,7 +110,7 @@ export const handleShopifyWebhook = async (req: Request, res: Response) => {
 
     if (process.env.NODE_ENV !== 'production') {
       console.log('[DEBUG] forwarding to internal service...');
-      await forwardToFastAPI('/webhooks/shopify', parsedBody);
+      // await forwardToFastAPI('/webhooks/shopify', parsedBody);
       console.log('[DEBUG] forwarded to internal service');
     }
 
